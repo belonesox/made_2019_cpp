@@ -79,13 +79,17 @@ class CCalculator {
         return ERROR_OK;
     }
 
+
     // Код результата
     ERROR_CODE error_code;
 
+    // Публичный getter, чтобы знать, где произошла ошибка разбора
+    int get_pos() {return pos;};
+
+  private:
     // Текущая позиция, публична, чтобы знать, где произошла ошибка разбора
     int pos;
 
-  private:
     const char *expression;
     TOKENTYPE token_type;
 
@@ -165,7 +169,7 @@ class CCalculator {
         char ch = expression[pos];
 
         // Eating space
-        while (ch == ' ') {
+        while (ch == ' ') { 
             ch = expression[++pos];
         }
 
@@ -215,7 +219,7 @@ int main(int argc, char *argv[]) {
     case ERROR_SYNTAX_ERROR:
         // Todo: красиво показывать позицию при ошибке синтаксиса.
         // Хотя, кому это надо.
-        std::cout << "Syntax Error! Position " << calc.pos + 1 << std::endl;
+        std::cout << "Syntax Error! Position " << calc.get_pos() + 1 << std::endl;
         break;
     case ERROR_DIVISION_BY_ZERO:
         std::cout << "Division by zero! " << std::endl;
