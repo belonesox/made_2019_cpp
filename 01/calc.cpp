@@ -200,7 +200,7 @@ int main(int argc, char *argv[]) {
 
     if (argc == 1) {
         std::cout << "Usage: " << argv[0] << " [expression] " << std::endl;
-        return 0;
+        return 0; // Хотя возможно здесь надо  ERROR_SYNTAX_ERROR
     }
 
     CCalculator calc;
