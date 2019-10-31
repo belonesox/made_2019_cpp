@@ -3,7 +3,7 @@
 # pylint: disable=W0107, C0330, C0301, W0621, E1101
 '''
 Будем использовать TDD.
-Сначала напишем тесты, используя как mock стандартный калькулятор bc, 
+Сначала напишем тесты, используя как mock стандартный калькулятор bc,
 как mock тестируемой программы, и сам python для расчета (нет времени считать самому).
 '''
 from __future__ import print_function
@@ -12,21 +12,23 @@ import sys
 import subprocess
 import random
 import math
+import errno
 
 # Расширяемое количество правильных выражений сделаем потом генерацией вероятностных тестов.
 good_expressions = """
 -515/219*  140
 2 + 3 * 4 - -2
 2 + 3
-5 + -6 
+5 + -6
 7+6+7+8-5
--724+     627/      -66-609*   -466+  953* -591*   696-     -723-      -624+707- -293
+-724+     627/      -66-609*   -466+  953* - \
+    591*   696-     -723-      -624+707- -293
 """
 # 65535*65535-65535*23
 # 2147483647+2147483647-2147483647*2
 
-# тут конечно да, сложность что bc сьест больше, чем нам надо. Но часть ложных можно и тут.
-fail_expessions = """
+# syntax error tests both for bc and calc
+bad_syntax_expessions = """
 44 d ddd+5666
 ----6:778
 --6+
@@ -42,10 +44,14 @@ fail_expessions = """
 -456-
 567-
 678+
+"""
+
+division_by_zero_expessions = """
 12/0
 0/-0
 -0/0
 """
+
 
 # Тут внутри хак-код, чтобы компенсировать классическую проблему
 # Python, в котором целочисленное деление суть floor division, см. https://www.python.org/dev/peps/pep-0238/
@@ -158,7 +164,7 @@ def have_bc():
     '''
     Есть ли на системе калькулятор BC.
     '''
-    # красиво было бы shutil.which использовать, но он только в третьем питоне.    
+    # красиво было бы shutil.which использовать, но он только в третьем питоне.
     try:
         subprocess.call(["bc", "2+2"])
         return True
@@ -168,8 +174,6 @@ def have_bc():
         else:
             # Something else went wrong while trying to run `wget`
             return False
-
-
 
 
 # Все, магия кончилась, выше мы завели «псевдооператор» «/div/» с правильной семантикой и приоритетом.
@@ -189,17 +193,18 @@ def run_mock(expression):
     if not err:
         result = int(round(float(out.strip())))
     else:
-        returncode = 1
+        returncode = 3
+        if "syntax" in err:
+            returncode = 1
+        if "zero" in err:
+            returncode = 2
     return result, returncode
 
 
 def run_calc(expression):
     p = subprocess.Popen(["./calc", expression], stdin=subprocess.PIPE,
                          stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    out, err = p.communicate()
-    # print(expression.encode("utf-8"))
-    # print("out", out)
-    # print("err", err)
+    out, _ = p.communicate()
     returncode = p.returncode  # bc always returns zero
     result = None
     if not returncode:
@@ -232,12 +237,20 @@ def test(func2test=run_mock):
         if not test_good_expression(expression):
             return False
 
-    print("     Testing bad expressions ")
-    for expression in fail_expessions.strip().split("\n"):
+    print("     Testing bad syntax expressions ")
+    for expression in bad_syntax_expessions.strip().split("\n"):
         print("     expression  ", expression)
         result, returncode = func2test(expression)
-        if returncode == 0:
-            print("!"*10, " returncode shoud be nonzero! ")
+        if returncode != 1:
+            print("!"*10, " returncode shoud be 1 (syntax error)! ")
+            return False
+
+    print("     Testing  expressions with division by zero ")
+    for expression in division_by_zero_expessions.strip().split("\n"):
+        print("     expression  ", expression)
+        result, returncode = func2test(expression)
+        if returncode != 2:
+            print("!"*10, " returncode shoud be 2 (division by zero)! ")
             return False
 
     print("     Testing random good expressions ")
@@ -278,8 +291,8 @@ if __name__ == "__main__":
         print("-"*50)
         if not test():
             sys.exit(-1)
-        # ну значит с тестами скорее всего ОК        
-    
+        # ну значит с тестами скорее всего ОК
+
     print("*"*50)
     print("Testing of real program")
     print("-"*50)

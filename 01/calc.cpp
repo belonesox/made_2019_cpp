@@ -1,5 +1,4 @@
 #include <cassert>
-#include <climits>
 #include <complex>
 #include <iomanip>
 #include <iostream>
@@ -44,50 +43,45 @@ calc "2 + 3 * 4 - -2"
 (Хотя при этом придется дико помучаться, проверяя калькулятор питоном.)
 */
 
-enum TOKENTYPE {
-    UNDEF = 0,
-    EOL = '\0',
-    NUMBER = 1,
-    ADD = '+',
-    SUB = '-',
-    MUL = '*',
-    DIV = '/'
-};
-
-enum ERROR_CODE { ERROR_OK, ERROR_SYNTAX_ERROR, ERROR_DIVISION_BY_ZERO };
+class CSyntaxError {};
+class CDivisionByZero {};
 
 class CCalculator {
 
   public:
-    // в процессе парсинга значения числовых литералов, в конце — результат.
-    BigInt number;
-
     // Основной интерфейс.
-    ERROR_CODE process(const char *input_expression) {
-        assert(input_expression);
-        error_code = ERROR_OK;
+    BigInt process(const char *input_expression) {
+        if (!input_expression) {
+            throw(CSyntaxError());
+        }
         number = 0;
         token_type = UNDEF;
         expression = input_expression;
         pos = 0;
 
-        try {
-            number = process_low_precendence();
-        } catch (ERROR_CODE error_) {
-            return error_;
-        }
-        return ERROR_OK;
+        return process_low_precendence();
     }
 
-
-    // Код результата
-    ERROR_CODE error_code;
-
     // Публичный getter, чтобы знать, где произошла ошибка разбора
-    int get_pos() {return pos;};
+    int get_pos() {
+        return pos;
+    };
 
   private:
-    // Текущая позиция, публична, чтобы знать, где произошла ошибка разбора
+    enum TOKENTYPE {
+        UNDEF = 0,
+        EOL = '\0',
+        NUMBER = 1,
+        ADD = '+',
+        SUB = '-',
+        MUL = '*',
+        DIV = '/'
+    };
+
+    // в процессе парсинга значения числовых литералов
+    BigInt number;
+
+    // Текущая позиция в разборе
     int pos;
 
     const char *expression;
@@ -107,7 +101,7 @@ class CCalculator {
             case EOL:
                 return res;
             default:
-                throw(ERROR_SYNTAX_ERROR);
+                throw(CSyntaxError());
             }
         }
         return 0;
@@ -124,7 +118,7 @@ class CCalculator {
             case '/':
                 divisor = process_number();
                 if (BigInt(0) == divisor) {
-                    throw(ERROR_DIVISION_BY_ZERO);
+                    throw(CDivisionByZero());
                 }
                 res /= divisor;
                 break;
@@ -148,12 +142,12 @@ class CCalculator {
         case NUMBER:
             return number;
         }
-        throw(ERROR_SYNTAX_ERROR);
+        throw(CSyntaxError());
     }
 
     // Ожидаем именно численный литерал без знака
     void eat_number() {
-        if (next_token() != NUMBER) throw(ERROR_SYNTAX_ERROR);
+        if (next_token() != NUMBER) throw(CSyntaxError());
     }
 
     // Следующий токен
@@ -169,7 +163,7 @@ class CCalculator {
         char ch = expression[pos];
 
         // Eating space
-        while (ch == ' ') { 
+        while (ch == ' ') {
             ch = expression[++pos];
         }
 
@@ -196,36 +190,32 @@ class CCalculator {
             if (pos < strlen(expression)) pos++;
             return static_cast<TOKENTYPE>(ch);
         default:
-            throw(ERROR_SYNTAX_ERROR);
+            throw(CSyntaxError());
         }
     }
 };
 
 int main(int argc, char *argv[]) {
+    enum ERROR_CODE { ERROR_SYNTAX_ERROR = 1, ERROR_DIVISION_BY_ZERO = 2 };
+
     if (argc == 1) {
         std::cout << "Usage: " << argv[0] << " [expression] " << std::endl;
         return 0;
     }
 
     CCalculator calc;
-    ERROR_CODE err_cod = calc.process(argv[1]);
-
-    if (err_cod == ERROR_OK) {
-        std::cout << calc.number << std::endl;
-        return 0;
-    }
-
-    switch (err_cod) {
-    case ERROR_SYNTAX_ERROR:
+    try {
+        BigInt result = calc.process(argv[1]);
+        std::cout << result << std::endl;
+    } catch (CSyntaxError error_) {
         // Todo: красиво показывать позицию при ошибке синтаксиса.
         // Хотя, кому это надо.
-        std::cout << "Syntax Error! Position " << calc.get_pos() + 1 << std::endl;
-        break;
-    case ERROR_DIVISION_BY_ZERO:
+        std::cout << "Syntax Error! Position " << calc.get_pos() + 1
+                  << std::endl;
+        return ERROR_SYNTAX_ERROR;
+    } catch (CDivisionByZero error_) {
         std::cout << "Division by zero! " << std::endl;
-        break;
-    default:
-        assert(0);
+        return ERROR_DIVISION_BY_ZERO;
     }
-    return err_cod;
+    return 0;
 }
