@@ -207,13 +207,13 @@ int main(int argc, char *argv[]) {
     try {
         BigInt result = calc.process(argv[1]);
         std::cout << result << std::endl;
-    } catch (CSyntaxError error_) {
+    } catch (CSyntaxError &error_) {
         // Todo: красиво показывать позицию при ошибке синтаксиса.
         // Хотя, кому это надо.
         std::cout << "Syntax Error! Position " << calc.get_pos() + 1
                   << std::endl;
         return ERROR_SYNTAX_ERROR;
-    } catch (CDivisionByZero error_) {
+    } catch (CDivisionByZero &error_) {
         std::cout << "Division by zero! " << std::endl;
         return ERROR_DIVISION_BY_ZERO;
     }
